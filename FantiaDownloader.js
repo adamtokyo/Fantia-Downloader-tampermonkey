@@ -862,23 +862,60 @@
 			return `${L}`;
 		}
 
-		static loadAsArrayBuffer(url, callback) {
-			let xhr = new XMLHttpRequest();
-			xhr.open("GET", url);
-			xhr.responseType = "arraybuffer";
-			xhr.onerror = function (error) {
-				return new Error(`ERROR`);
-			};
-			xhr.onload = function () {
-				if (xhr.status === 200) {
-					callback(xhr.response, xhr.getResponseHeader("Content-Type"), xhr.getResponseHeader("Last-Modified"));
-				} else {
-					return new Error(`ERROR`);
-				}
-			};
-			xhr.send();
-		}
-	}
+                static loadAsArrayBuffer(url, callback) {
+                        if (typeof GM_xmlhttpRequest === "function") {
+                                downloader.loadAsArrayBufferWithGMXmlHttpRequest(url, callback);
+                        } else {
+                                downloader.loadAsArrayBufferWithXMLHttpRequest(url, callback);
+                        }
+                }
+
+                static loadAsArrayBufferWithGMXmlHttpRequest(url, callback) {
+                        GM_xmlhttpRequest({
+                                method: "GET",
+                                url,
+                                responseType: "arraybuffer",
+                                onerror: function () {
+                                        return new Error(`ERROR`);
+                                },
+                                onload: function (response) {
+                                        if (response.status === 200) {
+                                                const getHeader = (name) => {
+                                                        if (!response.responseHeaders) {
+                                                                return null;
+                                                        }
+                                                        const match = response.responseHeaders.match(new RegExp(`^${name}:\\s*(.*)$`, "im"));
+                                                        return match ? match[1] : null;
+                                                };
+                                                callback(
+                                                        response.response,
+                                                        getHeader("Content-Type"),
+                                                        getHeader("Last-Modified")
+                                                );
+                                        } else {
+                                                return new Error(`ERROR`);
+                                        }
+                                }
+                        });
+                }
+
+                static loadAsArrayBufferWithXMLHttpRequest(url, callback) {
+                        let xhr = new XMLHttpRequest();
+                        xhr.open("GET", url);
+                        xhr.responseType = "arraybuffer";
+                        xhr.onerror = function () {
+                                return new Error(`ERROR`);
+                        };
+                        xhr.onload = function () {
+                                if (xhr.status === 200) {
+                                        callback(xhr.response, xhr.getResponseHeader("Content-Type"), xhr.getResponseHeader("Last-Modified"));
+                                } else {
+                                        return new Error(`ERROR`);
+                                }
+                        };
+                        xhr.send();
+                }
+        }
 
 	const getDownLoadButton = () => {
 		$("div.post-content-inner").each((i, div) => {
